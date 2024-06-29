@@ -13,6 +13,6 @@ Run
 pip install discord
 ```
 
-Download <a href=https://github.com/H1387XD/EasyCord/Source>Sources folder</a>
+Download <a href=https://github.com/H1387XD/EasyCord/tree/main/Source>Sources folder</a>
 Edit main.ezc to your liking!
 Run main.py !
