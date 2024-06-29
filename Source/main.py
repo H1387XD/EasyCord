@@ -20,20 +20,39 @@ import asyncio
 
 from discord.ext import commands
     """)
-  def getMessageAlloc(self, message):
-    s=message.split("%")
-    middle=math.floor(len(s)/3)
-    if s[middle]=="AUTHOR":
-      return s[0]+"{ctx.author.mention}"+s[2]
-    if s[middle]=="MENTION":
-      return s[0]+"{member.mention}"+s[2]
-    if s[middle].startswith("RANDOM_"):
-      return s[0]+"{random.randint("+s[middle].split('_')[1]+")}"+s[2]
-    return message
+  def getBetween(self, message):
+    s=" "
+    messageCTX=""
+    args=[]
+    for msg in message:
+      if msg in "%ABCDEFGHIJKLMNOPQRSTUVWXYZ": #it is capital
+        if msg=="%" and messageCTX=="":
+          continue
+        elif msg=="%":
+          args.append(messageCTX)
+          messageCTX=""
+          continue
+        messageCTX+=msg
+      elif msg in " %":
+        self.codeOutput.write(s)
+        s=""
+      elif msg in "abcdefghijklmnopqrstuv":
+        s+=msg
+    for argtext in args:
+      if argtext=="AUTHOR":
+        self.codeOutput.write("{ctx.author.mention}")
+      if argtext=="MENTION":
+        self.codeOutput.write("{member.mention}")
+      if argtext=="ARGS":
+        self.codeOutput.write("{"+self.args[0].removeprefix("*")+"[0]"+"}")
+      if argtext.startswith("RANDOM_"):
+        nums=argtext.split("_")[1]
+        self.codeOutput.write("{random.randint("+nums+")}'")
   def run(self):
     self.lines=self.code.split('\n')
     self.commandScope=""
     self.commandRequirements=[]
+    self.args=[]
     for line in self.lines:
       self.tokens=line.split('=')
       for index,token in enumerate(self.tokens):
@@ -43,9 +62,12 @@ from discord.ext import commands
         if token=="PREFIX":
           self.codeOutput.write("\nPrefix="+'"'+self.tokens[index+1]+'"')
           break
+        if token=="STATUS":
+          self.status="discord.CustomActivity(name='"+self.tokens[index+1]+"')"
 
         if token=="DISCORDBOT_INIT":
           self.codeOutput.write("\nclient=commands.Bot(command_prefix=Prefix, intents=discord.Intents.all())")
+          self.codeOutput.write(f"\n@client.event\nasync def on_ready():\n    try:\n        await client.change_presence(activity={self.status})\n    except:\n        pass")
           break
 
         if token.startswith("COMMAND_"):
@@ -58,7 +80,9 @@ from discord.ext import commands
 
           if commandRequirement=="DISCORDMEMBER":
             self.commandRequirements.append('member : discord.Member')
-        
+        if token=="ARGS" and self.commandScope:
+          self.args.append("*"+self.tokens[index+1])
+          break
         if token=="ENDREQUIREMENTS":
           self.codeOutput.write("\nasync def "+self.commandName+"(ctx")
           if len(self.commandRequirements)==0:
@@ -66,12 +90,15 @@ from discord.ext import commands
           else:
             for req in self.commandRequirements:
               self.codeOutput.write(" ,"+req)
+            for arg in self.args:
+              self.codeOutput.write(" ,"+arg)
           self.codeOutput.write("):")
 
         if token=="REPLY":
           message=self.tokens[index+1]
-          message=self.getMessageAlloc(message)
-          self.codeOutput.write("\n    await ctx.send(f'"+message+"')")
+          self.codeOutput.write("\n    await ctx.send(f'")
+          self.getBetween(message)
+          self.codeOutput.write("')")
           break
         if token=="BAN":
           self.codeOutput.write("\n    await member.ban()")
