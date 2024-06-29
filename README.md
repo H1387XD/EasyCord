@@ -7,7 +7,7 @@ A programming language to easy create discord apps/bots!
 
 # Installation
 
-Install <a href="https://www.python.org/downloads></a>
+Install <a href=https://www.python.org/downloads>Python</a>
 Run
 ```bat
 pip install discord
